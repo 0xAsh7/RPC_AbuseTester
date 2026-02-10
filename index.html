@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blockchain RPC Abuse Security Tester</title>
+  <meta name="description"
+    content="Automated security testing tool for blockchain RPC endpoints. Detects misconfigurations, exposed namespaces, and vulnerabilities.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+</head>
+
+<body>
+  <div id="app">
+    <!-- ── Header ── -->
+    <header class="app-header">
+      <div class="logo-container">
+        <div class="logo-icon">
+          <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M24 4L6 14v20l18 10 18-10V14L24 4z" stroke="#06b6d4" stroke-width="2" fill="none" />
+            <path d="M24 4v40M6 14l18 10 18-10M6 34l18-10 18 10" stroke="#06b6d4" stroke-width="1.5" opacity="0.5" />
+            <circle cx="24" cy="24" r="6" fill="#06b6d4" opacity="0.3" />
+            <circle cx="24" cy="24" r="3" fill="#06b6d4" />
+          </svg>
+        </div>
+        <h1 class="app-title">RPC Abuse Tester</h1>
+      </div>
+      <p class="app-subtitle">Blockchain RPC Endpoint Security Audit Tool</p>
+    </header>
+
+    <!-- ── Disclaimer ── -->
+    <div class="disclaimer-banner">
+      <span class="icon">⚠️</span>
+      <span><strong>Authorized Testing Only.</strong> This tool is for security research and authorized penetration
+        testing. All probes are read-only. Never test endpoints you do not own or have written permission to
+        test.</span>
+    </div>
+
+    <!-- ── Target Input ── -->
+    <div class="target-panel">
+      <div class="panel-title"><span class="dot"></span> Target Configuration</div>
+
+      <!-- Mode Toggle: URL vs IP/Port -->
+      <div class="input-mode-toggle">
+        <button class="mode-btn active" id="modeUrl" onclick="setInputMode('url')">Full URL</button>
+        <button class="mode-btn" id="modeIp" onclick="setInputMode('ip')">IP &amp; Port</button>
+      </div>
+
+      <!-- URL Mode -->
+      <div class="target-input-row" id="urlInputRow">
+        <div class="input-group">
+          <input type="text" id="targetUrl" placeholder="https://target-node:8545 or http://IP:8545" spellcheck="false"
+            autocomplete="off">
+        </div>
+        <div class="protocol-select">
+          <select id="protocolSelect">
+            <option value="ethereum">Ethereum (Geth/Besu)</option>
+            <option value="tendermint">Tendermint / CometBFT</option>
+            <option value="solana">Solana</option>
+            <option value="all">All Protocols</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" id="runAllBtn" onclick="runAllModules()">⚡ Full Scan</button>
+      </div>
+
+      <!-- IP/Port Mode -->
+      <div class="target-input-row" id="ipInputRow" style="display:none">
+        <div class="protocol-select">
+          <select id="schemeSelect">
+            <option value="http">http://</option>
+            <option value="https">https://</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <input type="text" id="targetIp" placeholder="IP Address (e.g. 103.243.21.48)" spellcheck="false"
+            autocomplete="off">
+        </div>
+        <div class="input-group" style="max-width:140px">
+          <input type="text" id="targetPort" placeholder="Port" value="8545" spellcheck="false" autocomplete="off">
+        </div>
+        <div class="protocol-select">
+          <select id="protocolSelect2">
+            <option value="ethereum">Ethereum</option>
+            <option value="tendermint">Tendermint</option>
+            <option value="solana">Solana</option>
+            <option value="all">All</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" id="runAllBtn2" onclick="runAllModules()">⚡ Full Scan</button>
+      </div>
+
+      <!-- Common Ports Quick-Set -->
+      <div class="quick-actions" id="portChips" style="display:none">
+        <span style="font-size:0.72rem;color:var(--text-muted);margin-right:4px;align-self:center;">Set port:</span>
+        <button class="quick-action-chip" onclick="setPort('8545')">8545 <span style="opacity:0.5">ETH
+            RPC</span></button>
+        <button class="quick-action-chip" onclick="setPort('8546')">8546 <span style="opacity:0.5">ETH
+            WS</span></button>
+        <button class="quick-action-chip" onclick="setPort('8551')">8551 <span style="opacity:0.5">Engine
+            API</span></button>
+        <button class="quick-action-chip" onclick="setPort('26657')">26657 <span
+            style="opacity:0.5">Tendermint</span></button>
+        <button class="quick-action-chip" onclick="setPort('8899')">8899 <span style="opacity:0.5">Solana
+            RPC</span></button>
+        <button class="quick-action-chip" onclick="setPort('8900')">8900 <span style="opacity:0.5">Solana
+            WS</span></button>
+      </div>
+
+      <!-- Quick Targets (URL mode) -->
+      <div class="quick-actions" id="urlChips">
+        <span style="font-size:0.72rem;color:var(--text-muted);margin-right:4px;align-self:center;">Quick
+          targets:</span>
+        <button class="quick-action-chip" onclick="setQuickTarget('https://eth.llamarpc.com')">eth.llamarpc.com</button>
+        <button class="quick-action-chip" onclick="setQuickTarget('https://rpc.ankr.com/eth')">ankr.com/eth</button>
+        <button class="quick-action-chip"
+          onclick="setQuickTarget('https://ethereum-rpc.publicnode.com')">publicnode.com</button>
+        <button class="quick-action-chip" onclick="setQuickTarget('https://api.mainnet-beta.solana.com')">solana
+          mainnet</button>
+        <button class="quick-action-chip" onclick="setQuickTarget('http://localhost:8545')">localhost:8545</button>
+      </div>
+    </div>
+
+    <!-- ── Shodan Query Reference ── -->
+    <div class="shodan-panel">
+      <div class="shodan-header" onclick="toggleShodan()">
+        <div class="panel-title" style="margin-bottom:0"><span class="dot"
+            style="background:var(--accent-purple)"></span> Shodan Discovery Queries</div>
+        <span class="shodan-toggle" id="shodanToggle">▸</span>
+      </div>
+      <div class="shodan-body" id="shodanBody">
+        <div class="shodan-grid">
+          <div class="shodan-card">
+            <div class="shodan-card-title">🔷 Ethereum / Geth</div>
+            <div class="shodan-query" onclick="copyShodanQuery(this)"><code>port:8545 jsonrpc</code><span
+                class="copy-hint">📋</span></div>
+            <div class="shodan-query" onclick="copyShodanQuery(this)"><code>port:8545 "eth_blockNumber"</code><span
+                class="copy-hint">📋</span></div>
+            <div class="shodan-query" onclick="copyShodanQuery(this)"><code>"geth" port:8545</code><span
+                class="copy-hint">📋</span></div>
+            <div class="shodan-query" onclick="copyShodanQuery(this)"><code>port:8546 websocket ethereum</code><span
+                class="copy-hint">📋</span></div>
+            <div class="shodan-query" onclick="copyShodanQuery(this)"><code>port:8551 "engine"</code><span
+                class="copy-hint">📋</span></div>
+          </div>
+          <div class="shodan-card">
+            <div class="shodan-card-title">⛓️ Tendermint / CometBFT</div>
+            <div class="shodan-query" onclick="copyShodanQuery(this)"><code>port:26657 tendermint</code><span
+                class="copy-hint">📋</span></div>
+            <div class="shodan-query" onclick="copyShodanQuery(this)"><code>port:26657 "jsonrpc"</code><span
+                class="copy-hint">📋</span></div>
+            <div class="shodan-query" onclick="copyShodanQuery(this)"><code>port:26657 "node_info"</code><span
+                class="copy-hint">📋</span></div>
+          </div>
+          <div class="shodan-card">
+            <div class="shodan-card-title">☀️ Solana</div>
+            <div class="shodan-query" onclick="copyShodanQuery(this)"><code>port:8899</code><span
+                class="copy-hint">📋</span></div>
+            <div class="shodan-query" onclick="copyShodanQuery(this)"><code>port:8899 "getHealth"</code><span
+                class="copy-hint">📋</span></div>
+            <div class="shodan-query" onclick="copyShodanQuery(this)"><code>port:8900 solana websocket</code><span
+                class="copy-hint">📋</span></div>
+          </div>
+          <div class="shodan-card">
+            <div class="shodan-card-title">🔍 Generic / Error-Based</div>
+            <div class="shodan-query" onclick="copyShodanQuery(this)"><code>"-32601" jsonrpc</code><span
+                class="copy-hint">📋</span></div>
+            <div class="shodan-query" onclick="copyShodanQuery(this)"><code>"jsonrpc" "2.0" port:8545</code><span
+                class="copy-hint">📋</span></div>
+            <div class="shodan-query" onclick="copyShodanQuery(this)"><code>"Hyperledger Besu" port:8545</code><span
+                class="copy-hint">📋</span></div>
+          </div>
+        </div>
+        <div class="shodan-tip">💡 Click any query to copy it. Paste into <a href="https://shodan.io/search"
+            target="_blank" style="color:var(--accent-cyan)">shodan.io/search</a>, then copy target IPs back here.</div>
+      </div>
+    </div>
+
+    <!-- ── Stats Bar ── -->
+    <div class="stats-bar">
+      <div class="stat-card">
+        <div class="stat-value critical" id="statCritical">0</div>
+        <div class="stat-label">Critical</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value major" id="statMajor">0</div>
+        <div class="stat-label">Major</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value medium" id="statMedium">0</div>
+        <div class="stat-label">Medium</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value minor" id="statMinor">0</div>
+        <div class="stat-label">Minor</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value info" id="statInfo">0</div>
+        <div class="stat-label">Info</div>
+      </div>
+    </div>
+
+    <!-- ── Main Layout ── -->
+    <div class="main-layout">
+      <!-- Sidebar -->
+      <nav class="module-sidebar">
+        <div class="sidebar-title">Test Modules</div>
+        <div class="module-nav-item" data-module="scanner">
+          <span class="nav-icon">🛰️</span>
+          <span>Scanner</span>
+          <span class="badge"></span>
+        </div>
+        <div class="module-nav-item active" data-module="discovery">
+          <span class="nav-icon">🔍</span>
+          <span>Discovery</span>
+          <span class="badge"></span>
+        </div>
+        <div class="module-nav-item" data-module="enumeration">
+          <span class="nav-icon">📋</span>
+          <span>Enumeration</span>
+          <span class="badge"></span>
+        </div>
+        <div class="module-nav-item" data-module="wallet">
+          <span class="nav-icon">💰</span>
+          <span>Wallet Audit</span>
+          <span class="badge"></span>
+        </div>
+        <div class="module-nav-item" data-module="cors">
+          <span class="nav-icon">🌐</span>
+          <span>CORS & Vhost</span>
+          <span class="badge"></span>
+        </div>
+        <div class="module-nav-item" data-module="tendermint">
+          <span class="nav-icon">⛓️</span>
+          <span>Tendermint</span>
+          <span class="badge"></span>
+        </div>
+        <div class="module-nav-item" data-module="solana">
+          <span class="nav-icon">☀️</span>
+          <span>Solana</span>
+          <span class="badge"></span>
+        </div>
+        <div class="module-nav-item" data-module="resource">
+          <span class="nav-icon">⚡</span>
+          <span>Resource Test</span>
+          <span class="badge"></span>
+        </div>
+      </nav>
+
+      <!-- Content -->
+      <div class="content-panel">
+        <div class="content-header">
+          <div class="content-title" id="contentTitle">
+            <span class="module-icon">🔍</span> Discovery & Fingerprint
+          </div>
+          <div class="content-actions">
+            <button class="btn btn-secondary btn-sm" id="runBtn" onclick="runModule(APP_STATE.activeModule)">▶ Run
+              Module</button>
+            <button class="btn btn-secondary btn-sm" onclick="generateReport()">📄 Report</button>
+          </div>
+        </div>
+        <div class="content-body" id="contentBody">
+          <!-- Dynamic content rendered here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Log Console ── -->
+    <div class="log-console">
+      <div class="log-header">
+        <span class="log-header-title">
+          <span style="color:var(--accent-green)">●</span> Activity Log
+        </span>
+        <button class="btn btn-secondary btn-sm" onclick="APP_STATE.logs=[];renderLogs();"
+          style="padding:4px 12px;font-size:0.7rem;">Clear</button>
+      </div>
+      <div class="log-body" id="logBody"></div>
+    </div>
+  </div>
+
+  <!-- ── Report Modal ── -->
+  <div class="modal-overlay" id="reportModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>📄 Audit Report</h2>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="report-section">
+          <h3>🔒 JSON Report Output</h3>
+          <pre class="report-json" id="reportJson"></pre>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-sm" onclick="closeModal()">Close</button>
+        <button class="btn btn-primary btn-sm" onclick="downloadReport()">⬇ Download JSON</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Response Detail Overlay ── -->
+  <div class="response-detail-overlay" id="detailOverlay" onclick="closeDetail()">
+    <div class="response-detail-box" onclick="event.stopPropagation()">
+      <h3 id="detailTitle">Method Response</h3>
+      <pre id="detailContent"></pre>
+      <div style="margin-top:16px;text-align:right">
+        <button class="btn btn-secondary btn-sm" onclick="closeDetail()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
